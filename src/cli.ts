@@ -73,9 +73,21 @@ if (flags.includes("--help") || flags.includes("-h")) {
     } else if (!process.stdin.isTTY) {
       fail("the list needs an interactive terminal — pass a file or --random");
     } else {
-      const chosen = await pickPicture(pictures, shortenHome(target), getWallpaper());
-      if (chosen) applyAndReport(chosen.path);
-      else process.exitCode = 130;
+      const original = getWallpaper();
+      const chosen = await pickPicture(pictures, shortenHome(target), original, (picture) => {
+        try {
+          setWallpaper(picture.path);
+        } catch {
+          // a broken file in the preview should not take the list down
+        }
+      });
+      if (chosen) {
+        applyAndReport(chosen.path);
+      } else {
+        if (original) setWallpaper(original);
+        console.log("Cancelled, wallpaper restored.");
+        process.exitCode = 130;
+      }
     }
   }
 }
