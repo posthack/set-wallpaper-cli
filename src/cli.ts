@@ -3,6 +3,7 @@ import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, resolve } from "node:path";
 import { findPictures, isImage, type Picture } from "./scan.ts";
+import { pickPicture } from "./tui.ts";
 import { getWallpaper, setWallpaper } from "./wallpaper.ts";
 
 const HELP = `
@@ -69,8 +70,12 @@ if (flags.includes("--help") || flags.includes("-h")) {
     const pictures = collect(target);
     if (flags.includes("--random") || flags.includes("-r")) {
       applyAndReport(pictures[Math.floor(Math.random() * pictures.length)]!.path);
+    } else if (!process.stdin.isTTY) {
+      fail("the list needs an interactive terminal — pass a file or --random");
     } else {
-      for (const picture of pictures) console.log(picture.label);
+      const chosen = await pickPicture(pictures, shortenHome(target), getWallpaper());
+      if (chosen) applyAndReport(chosen.path);
+      else process.exitCode = 130;
     }
   }
 }
