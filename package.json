@@ -1,0 +1,13 @@
+{
+  "name": "set-wallpaper-cli",
+  "version": "0.1.0",
+  "description": "Interactive desktop wallpaper picker for macOS",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "set-wallpaper": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "bun run src/cli.ts"
+  }
+}
