@@ -1,20 +1,30 @@
 #!/usr/bin/env bun
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, resolve } from "node:path";
+import { findPictures, isImage, type Picture } from "./scan.ts";
 import { getWallpaper, setWallpaper } from "./wallpaper.ts";
 
 const HELP = `
 set-wallpaper — pick a desktop wallpaper
 
+  set-wallpaper              list pictures from ~/Pictures
+  set-wallpaper <dir>        list pictures from the given directory
   set-wallpaper <file>       set the wallpaper
+  set-wallpaper --random     a random picture from the directory
   set-wallpaper --current    print the current wallpaper
   set-wallpaper --help       this help
+
+Set SET_WALLPAPER_DIR to change the default directory.
 `.trim();
 
 function expandPath(input: string): string {
   const expanded = input.startsWith("~") ? homedir() + input.slice(1) : input;
   return isAbsolute(expanded) ? expanded : resolve(process.cwd(), expanded);
+}
+
+function defaultDirectory(): string {
+  return expandPath(process.env.SET_WALLPAPER_DIR || `${homedir()}/Pictures`);
 }
 
 function shortenHome(path: string): string {
@@ -27,16 +37,40 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const argv = process.argv.slice(2);
+function collect(directory: string): Picture[] {
+  if (!existsSync(directory)) fail(`no such directory: ${shortenHome(directory)}`);
+  const pictures = findPictures(directory);
+  if (pictures.length === 0) fail(`no pictures in ${shortenHome(directory)}`);
+  return pictures;
+}
 
-if (argv.includes("--help") || argv.includes("-h") || argv.length === 0) {
+function applyAndReport(path: string): void {
+  setWallpaper(path);
+  console.log(`Wallpaper: ${shortenHome(path)}`);
+}
+
+const flags = process.argv.slice(2).filter((a) => a.startsWith("-"));
+const positional = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+
+if (flags.includes("--help") || flags.includes("-h")) {
   console.log(HELP);
-} else if (argv.includes("--current")) {
+} else if (flags.includes("--current")) {
   const current = getWallpaper();
   console.log(current ? shortenHome(current) : "no wallpaper set");
 } else {
-  const target = expandPath(argv[0]!);
-  if (!existsSync(target)) fail(`not found: ${shortenHome(target)}`);
-  setWallpaper(target);
-  console.log(`Wallpaper: ${shortenHome(target)}`);
+  const target = positional[0] ? expandPath(positional[0]) : defaultDirectory();
+  const isDirectory = existsSync(target) && statSync(target).isDirectory();
+
+  if (!isDirectory) {
+    if (!existsSync(target)) fail(`not found: ${shortenHome(target)}`);
+    if (!isImage(target)) fail(`not a picture: ${shortenHome(target)}`);
+    applyAndReport(target);
+  } else {
+    const pictures = collect(target);
+    if (flags.includes("--random") || flags.includes("-r")) {
+      applyAndReport(pictures[Math.floor(Math.random() * pictures.length)]!.path);
+    } else {
+      for (const picture of pictures) console.log(picture.label);
+    }
+  }
 }
