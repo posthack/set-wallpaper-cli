@@ -10,7 +10,7 @@ import {
   SUBCELL_STEPS,
 } from "./anim.ts";
 import { clamp, filterPictures, scrollOffset, truncate } from "./list.ts";
-import { AnimationLoop, FrameWriter } from "./render.ts";
+import { AnimationLoop, FrameWriter, detectSyncOutput } from "./render.ts";
 import type { Picture } from "./scan.ts";
 import { background, palette, RESET } from "./theme.ts";
 
@@ -42,10 +42,12 @@ export interface PickerResult {
   picture: Picture | null;
 }
 
-export function pickPicture(options: PickerOptions): Promise<PickerResult> {
+export async function pickPicture(options: PickerOptions): Promise<PickerResult> {
   const { pictures, title, current, preview, motion } = options;
   const out = process.stdout;
   const stdin = process.stdin;
+
+  const synchronized = motion ? await detectSyncOutput() : false;
 
   // Raw mode first, then the query: otherwise the reply is echoed onto the
   // screen and comes back as a keypress.
@@ -61,7 +63,7 @@ export function pickPicture(options: PickerOptions): Promise<PickerResult> {
     out.write(RESET + SHOW_CURSOR + ALT_SCREEN_OFF);
   };
   process.once("exit", restoreTerminal);
-  const writer = new FrameWriter();
+  const writer = new FrameWriter(synchronized);
 
   const fadeIn = ramp(background, palette.subtle);
   const fadeSelected = ramp(background, palette.text);
