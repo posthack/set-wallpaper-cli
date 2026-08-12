@@ -74,12 +74,18 @@ if (flags.includes("--help") || flags.includes("-h")) {
       fail("the list needs an interactive terminal — pass a file or --random");
     } else {
       const original = getWallpaper();
-      const chosen = await pickPicture(pictures, shortenHome(target), original, (picture) => {
-        try {
-          setWallpaper(picture.path);
-        } catch {
-          // a broken file in the preview should not take the list down
-        }
+      const { picture: chosen } = await pickPicture({
+        pictures,
+        title: shortenHome(target),
+        current: original,
+        motion: process.stdout.isTTY === true,
+        preview: (picture) => {
+          try {
+            setWallpaper(picture.path);
+          } catch {
+            // a broken file in the preview should not take the list down
+          }
+        },
       });
       if (chosen) {
         applyAndReport(chosen.path);

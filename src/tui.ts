@@ -1,61 +1,204 @@
+import {
+  clamp01,
+  createSpring,
+  easeOutCubic,
+  fg,
+  isSettled,
+  ramp,
+  rampAt,
+  stepSpring,
+  SUBCELL_STEPS,
+} from "./anim.ts";
 import { clamp, filterPictures, scrollOffset, truncate } from "./list.ts";
+import { AnimationLoop, FrameWriter } from "./render.ts";
 import type { Picture } from "./scan.ts";
+import { background, palette, RESET } from "./theme.ts";
 
 const ESC = "\x1b";
 const ALT_SCREEN_ON = `${ESC}[?1049h`;
 const ALT_SCREEN_OFF = `${ESC}[?1049l`;
 const HIDE_CURSOR = `${ESC}[?25l`;
 const SHOW_CURSOR = `${ESC}[?25h`;
-const CLEAR = `${ESC}[2J${ESC}[H`;
 
+const CURSOR_OMEGA = 52;
+const ENTRANCE_MS = 190;
+const ENTRANCE_STAGGER_MS = 16;
+const SWEEP_MS = 320;
+const SWEEP_SPREAD = 4;
 // Held arrow keys would otherwise thrash the wallpaper agent.
 const PREVIEW_DELAY_MS = 60;
 
-export function pickPicture(
-  pictures: Picture[],
-  title: string,
-  current: string | null,
-  preview: (picture: Picture) => void,
-): Promise<Picture | null> {
+const EIGHTHS = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+
+export interface PickerOptions {
+  pictures: Picture[];
+  title: string;
+  current: string | null;
+  preview: (picture: Picture) => void;
+  motion: boolean;
+}
+
+export interface PickerResult {
+  picture: Picture | null;
+}
+
+export function pickPicture(options: PickerOptions): Promise<PickerResult> {
+  const { pictures, title, current, preview, motion } = options;
   const out = process.stdout;
   const stdin = process.stdin;
+
+  // Raw mode first, then the query: otherwise the reply is echoed onto the
+  // screen and comes back as a keypress.
+  stdin.setRawMode(true);
+  stdin.resume();
+
+  const restoreTerminal = () => {
+    try {
+      stdin.setRawMode(false);
+    } catch {
+      // already closed
+    }
+    out.write(RESET + SHOW_CURSOR + ALT_SCREEN_OFF);
+  };
+  process.once("exit", restoreTerminal);
+  const writer = new FrameWriter();
+
+  const fadeIn = ramp(background, palette.subtle);
+  const fadeSelected = ramp(background, palette.text);
+  const sweepRamp = ramp(palette.text, palette.iris);
+  const cancelRamp = ramp(palette.muted, palette.overlay);
 
   let query = "";
   let visible = pictures;
   let cursor = Math.max(0, pictures.findIndex((p) => p.path === current));
   let offset = 0;
+
+  // Fractional row inside the viewport: the spring rides between rows.
+  let cursorY = 0;
+  let cursorVelocity = 0;
+  const spring = createSpring(1 / 60, CURSOR_OMEGA);
+
+  let startedAt = performance.now();
+  let entranceDone = !motion;
+  let phase: "browsing" | "applying" | "cancelling" = "browsing";
+  let sweepStartedAt = 0;
+
   let previewTimer: ReturnType<typeof setTimeout> | null = null;
   let previewed = current;
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
   const listHeight = () => Math.max(3, (out.rows || 24) - 6);
   const width = () => (out.columns || 80) - 6;
 
-  const applyQuery = () => {
-    const anchor = visible[cursor]?.path;
-    visible = filterPictures(pictures, query);
-    const kept = visible.findIndex((p) => p.path === anchor);
-    cursor = kept >= 0 ? kept : 0;
-    offset = 0;
+  const highlight = (label: string, base: string): string => {
+    if (!query.trim()) return base + label;
+    const at = label.toLowerCase().indexOf(query.trim().toLowerCase());
+    if (at < 0) return base + label;
+    const end = at + query.trim().length;
+    return (
+      base + label.slice(0, at) + fg(palette.gold) + label.slice(at, end) + base + label.slice(end)
+    );
   };
 
-  const render = () => {
+  // A cell is indivisible, so the bar moves in block glyphs: the row under the
+  // cursor gets its lower part, the next one the upper part drawn by inverting
+  // fg and bg. Eight positions per row instead of a jump across a whole one.
+  const railFor = (row: number): string => {
+    const top = Math.floor(cursorY);
+    const fraction = cursorY - top;
+    const accent = fg(palette.iris);
+    if (row === top) {
+      const height = Math.round((1 - fraction) * SUBCELL_STEPS);
+      return height === 0 ? " " : accent + EIGHTHS[height]! + RESET;
+    }
+    if (row === top + 1 && fraction > 0.01) {
+      const height = SUBCELL_STEPS - Math.round(fraction * SUBCELL_STEPS);
+      const bgAccent = `\x1b[48;2;${palette.iris[0]};${palette.iris[1]};${palette.iris[2]}m`;
+      return bgAccent + fg(background) + EIGHTHS[height]! + RESET;
+    }
+    return " ";
+  };
+
+  const render = (now: number): string[] => {
     const height = listHeight();
+    const cols = width();
     offset = scrollOffset(offset, cursor, visible.length, height);
 
-    const lines = ["", `  Wallpaper  ${title}`, ""];
+    const lines: string[] = [
+      "",
+      `  ${fg(palette.text)}Wallpaper${RESET}  ${fg(palette.muted)}${title}${RESET}`,
+      "",
+    ];
+
     if (visible.length === 0) {
-      lines.push("  no matches");
+      lines.push(`  ${fg(palette.muted)}no matches${RESET}`);
     } else {
-      for (const [row, picture] of visible.slice(offset, offset + height).entries()) {
-        const selected = offset + row === cursor;
-        const mark = picture.path === current ? "•" : " ";
-        const label = truncate(picture.label, width());
-        lines.push(selected ? ` > ${label} ${mark}` : `   ${label} ${mark}`);
+      const slice = visible.slice(offset, offset + height);
+      for (const [row, picture] of slice.entries()) {
+        const index = offset + row;
+        const selected = index === cursor;
+
+        const progress = entranceDone
+          ? 1
+          : easeOutCubic(clamp01((now - startedAt - row * ENTRANCE_STAGGER_MS) / ENTRANCE_MS));
+        const indent = " ".repeat(Math.round((1 - progress) * 3));
+        const label = truncate(indent + picture.label, cols);
+
+        let body: string;
+        if (phase !== "browsing" && selected) {
+          body = sweepLine(label, now);
+        } else {
+          const steps = selected ? fadeSelected : fadeIn;
+          body = highlight(label, rampAt(steps, progress));
+        }
+
+        const mark = picture.path === current ? `${fg(palette.muted)}•${RESET}` : " ";
+        lines.push(` ${railFor(row)} ${body}${RESET} ${mark}`);
+      }
+      if (visible.length > height) {
+        lines.push(`   ${fg(palette.muted)}${cursor + 1}/${visible.length}${RESET}`);
       }
     }
+
     lines.push("");
-    lines.push(query ? `  search: ${query}` : "  arrows move, Enter applies, Esc cancels, type to search");
-    out.write(CLEAR + lines.join("\n"));
+    if (phase === "applying") {
+      lines.push(`  ${fg(palette.iris)}✓${RESET} ${fg(palette.muted)}wallpaper set${RESET}`);
+    } else if (phase === "cancelling") {
+      lines.push(`  ${fg(palette.muted)}↩ restored${RESET}`);
+    } else if (query) {
+      lines.push(
+        `  ${fg(palette.muted)}search:${RESET} ${fg(palette.text)}${query}${fg(palette.iris)}▏${RESET}`,
+      );
+    } else {
+      lines.push(
+        `  ${fg(palette.muted)}↑↓ move · Enter apply · Esc cancel · type to search${RESET}`,
+      );
+    }
+    return lines;
+  };
+
+  const sweepLine = (label: string, now: number): string => {
+    const progress = clamp01((now - sweepStartedAt) / SWEEP_MS);
+    const chars = [...label];
+    const head = progress * (chars.length + SWEEP_SPREAD * 2) - SWEEP_SPREAD;
+    // Cancelling plays the same glint muted and backwards.
+    const cancelling = phase === "cancelling";
+    const position = cancelling ? chars.length - head : head;
+    const steps = cancelling ? cancelRamp : sweepRamp;
+
+    let result = "";
+    let previousColor = "";
+    for (const [i, char] of chars.entries()) {
+      const distance = (i - position) / SWEEP_SPREAD;
+      const weight = Math.exp(-(distance * distance));
+      const color = rampAt(steps, weight);
+      if (color !== previousColor) {
+        result += color;
+        previousColor = color;
+      }
+      result += char;
+    }
+    return result;
   };
 
   const schedulePreview = () => {
@@ -69,33 +212,125 @@ export function pickPicture(
     }, PREVIEW_DELAY_MS);
   };
 
-  return new Promise((resolve) => {
-    const cleanup = () => {
-      if (previewTimer) clearTimeout(previewTimer);
-      stdin.off("data", onData);
-      stdin.setRawMode(false);
-      stdin.pause();
-      out.write(SHOW_CURSOR + ALT_SCREEN_OFF);
+  const applyQuery = () => {
+    const anchor = visible[cursor]?.path;
+    visible = filterPictures(pictures, query);
+    const kept = visible.findIndex((p) => p.path === anchor);
+    cursor = kept >= 0 ? kept : 0;
+    offset = 0;
+  };
+
+  return new Promise<PickerResult>((resolve) => {
+    const loop = new AnimationLoop(() => {
+      const now = performance.now();
+      const target = cursor - offset;
+
+      let moving = false;
+      [cursorY, cursorVelocity] = stepSpring(spring, cursorY, cursorVelocity, target);
+      if (isSettled(cursorY, cursorVelocity, target)) {
+        cursorY = target;
+        cursorVelocity = 0;
+      } else {
+        moving = true;
+      }
+
+      if (!entranceDone) {
+        const total = ENTRANCE_MS + listHeight() * ENTRANCE_STAGGER_MS;
+        if (now - startedAt >= total) entranceDone = true;
+        else moving = true;
+      }
+
+      if (phase !== "browsing") {
+        if (now - sweepStartedAt >= SWEEP_MS) {
+          writer.write(render(now));
+          finish(phase === "applying" ? visible[cursor]! : null);
+          return false;
+        }
+        moving = true;
+      }
+
+      writer.write(render(now));
+      return moving;
+    });
+
+    // Any keypress cuts the entrance short.
+    const settleEntrance = () => {
+      if (entranceDone) return;
+      entranceDone = true;
+      cursorY = cursor - offset;
+      cursorVelocity = 0;
     };
 
-    const onData = (chunk: Buffer) => {
-      const key = chunk.toString();
-      if (key === "\r" || key === "\n") {
-        const picture = visible[cursor];
+    const draw = () => {
+      if (motion) loop.start();
+      else writer.write(render(performance.now()));
+    };
+
+    const cleanup = () => {
+      loop.stop();
+      if (previewTimer) clearTimeout(previewTimer);
+      if (resizeTimer) clearTimeout(resizeTimer);
+      stdin.off("data", onData);
+      out.off("resize", onResize);
+      process.off("exit", restoreTerminal);
+      stdin.setRawMode(false);
+      stdin.pause();
+      out.write(RESET + SHOW_CURSOR + ALT_SCREEN_OFF);
+    };
+
+    const finish = (picture: Picture | null) => {
+      cleanup();
+      resolve({ picture });
+    };
+
+    const leave = (kind: "applying" | "cancelling") => {
+      const picture = visible[cursor];
+      if (kind === "applying") {
         if (!picture) return;
         if (previewTimer) clearTimeout(previewTimer);
         if (previewed !== picture.path) preview(picture);
-        cleanup();
-        resolve(picture);
+      }
+      if (!motion) {
+        finish(kind === "applying" ? picture! : null);
         return;
       }
-      if (key === ESC || key === "\x03") {
-        cleanup();
-        resolve(null);
+      settleEntrance();
+      phase = kind;
+      sweepStartedAt = performance.now();
+      loop.start();
+    };
+
+    const onResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      // Dragging a window fires dozens of these in a row.
+      resizeTimer = setTimeout(() => {
+        writer.invalidate();
+        out.write(`${ESC}[2J`);
+        cursorY = cursor - offset;
+        draw();
+      }, 40);
+    };
+
+    const onData = (chunk: Buffer) => {
+      if (phase !== "browsing") return;
+      const key = chunk.toString();
+      const last = visible.length - 1;
+
+      if (key === "\r" || key === "\n") {
+        settleEntrance();
+        leave("applying");
         return;
       }
-      if (key === `${ESC}[A`) cursor = clamp(cursor - 1, visible.length - 1);
-      else if (key === `${ESC}[B`) cursor = clamp(cursor + 1, visible.length - 1);
+      if (key === ESC || key === "\x03" || key === "\x04") {
+        settleEntrance();
+        leave("cancelling");
+        return;
+      }
+
+      settleEntrance();
+
+      if (key === `${ESC}[A`) cursor = clamp(cursor - 1, last);
+      else if (key === `${ESC}[B`) cursor = clamp(cursor + 1, last);
       else if (key === "\x7f") {
         if (!query) return;
         query = query.slice(0, -1);
@@ -108,14 +343,17 @@ export function pickPicture(
         query += key;
         applyQuery();
       } else return;
-      render();
+
+      draw();
       schedulePreview();
     };
 
-    stdin.setRawMode(true);
-    stdin.resume();
     stdin.on("data", onData);
-    out.write(ALT_SCREEN_ON + HIDE_CURSOR);
-    render();
+    out.on("resize", onResize);
+    out.write(ALT_SCREEN_ON + HIDE_CURSOR + `${ESC}[2J`);
+
+    startedAt = performance.now();
+    cursorY = motion ? Math.max(0, cursor - offset - 1) : cursor - offset;
+    draw();
   });
 }
