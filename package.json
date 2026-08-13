@@ -4,12 +4,15 @@
   "description": "Interactive desktop wallpaper picker for macOS",
   "type": "module",
   "private": true,
+  "license": "MIT",
+  "author": "Viktor Abakumov <hello@imatte.ru>",
   "bin": {
     "set-wallpaper": "./src/cli.ts"
   },
   "scripts": {
     "start": "bun run src/cli.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "link": "ln -sf \"$PWD/src/cli.ts\" \"$HOME/.local/bin/set-wallpaper\""
   },
   "devDependencies": {
     "@types/bun": "^1.3.14"
