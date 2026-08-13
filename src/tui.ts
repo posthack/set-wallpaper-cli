@@ -9,8 +9,9 @@ import {
   stepSpring,
   SUBCELL_STEPS,
 } from "./anim.ts";
+import { parseKeys } from "./keys.ts";
 import { clamp, filterPictures, scrollOffset, truncate } from "./list.ts";
-import { AnimationLoop, FrameWriter, detectSyncOutput } from "./render.ts";
+import { AnimationLoop, FrameWriter, probeSyncOutput } from "./render.ts";
 import type { Picture } from "./scan.ts";
 import { background, palette, RESET } from "./theme.ts";
 
@@ -47,8 +48,6 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
   const out = process.stdout;
   const stdin = process.stdin;
 
-  const synchronized = motion ? await detectSyncOutput() : false;
-
   // Raw mode first, then the query: otherwise the reply is echoed onto the
   // screen and comes back as a keypress.
   stdin.setRawMode(true);
@@ -63,7 +62,10 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
     out.write(RESET + SHOW_CURSOR + ALT_SCREEN_OFF);
   };
   process.once("exit", restoreTerminal);
-  const writer = new FrameWriter(synchronized);
+  const probe = motion
+    ? await probeSyncOutput()
+    : { supported: false, leftover: Buffer.alloc(0) };
+  const writer = new FrameWriter(probe.supported);
 
   const fadeIn = ramp(background, palette.subtle);
   const fadeSelected = ramp(background, palette.text);
@@ -315,37 +317,65 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
 
     const onData = (chunk: Buffer) => {
       if (phase !== "browsing") return;
-      const key = chunk.toString();
+
+      let changed = false;
+      const page = Math.max(1, listHeight() - 1);
       const last = visible.length - 1;
 
-      if (key === "\r" || key === "\n") {
+      for (const key of parseKeys(chunk.toString())) {
+        if (key.type === "ignore") continue;
+
+        if (key.type === "enter") {
+          settleEntrance();
+          leave("applying");
+          return;
+        }
+        if (key.type === "escape") {
+          settleEntrance();
+          leave("cancelling");
+          return;
+        }
+
         settleEntrance();
-        leave("applying");
-        return;
+
+        switch (key.type) {
+          case "up":
+            cursor = clamp(cursor - 1, last);
+            break;
+          case "down":
+            cursor = clamp(cursor + 1, last);
+            break;
+          case "pageUp":
+            cursor = clamp(cursor - page, last);
+            break;
+          case "pageDown":
+            cursor = clamp(cursor + page, last);
+            break;
+          case "home":
+            cursor = 0;
+            break;
+          case "end":
+            cursor = Math.max(0, last);
+            break;
+          case "backspace":
+            if (!query) continue;
+            query = query.slice(0, -1);
+            applyQuery();
+            break;
+          case "clear":
+            if (!query) continue;
+            query = "";
+            applyQuery();
+            break;
+          case "text":
+            query += key.value;
+            applyQuery();
+            break;
+        }
+        changed = true;
       }
-      if (key === ESC || key === "\x03" || key === "\x04") {
-        settleEntrance();
-        leave("cancelling");
-        return;
-      }
 
-      settleEntrance();
-
-      if (key === `${ESC}[A`) cursor = clamp(cursor - 1, last);
-      else if (key === `${ESC}[B`) cursor = clamp(cursor + 1, last);
-      else if (key === "\x7f") {
-        if (!query) return;
-        query = query.slice(0, -1);
-        applyQuery();
-      } else if (key === "\x15") {
-        if (!query) return;
-        query = "";
-        applyQuery();
-      } else if (key >= " " && !key.startsWith(ESC)) {
-        query += key;
-        applyQuery();
-      } else return;
-
+      if (!changed) return;
       draw();
       schedulePreview();
     };
@@ -357,5 +387,8 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
     startedAt = performance.now();
     cursorY = motion ? Math.max(0, cursor - offset - 1) : cursor - offset;
     draw();
+
+    // Whatever came in alongside the probe reply is already user input.
+    if (probe.leftover.length > 0) onData(probe.leftover);
   });
 }
