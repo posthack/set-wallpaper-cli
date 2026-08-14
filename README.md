@@ -11,6 +11,10 @@ Pick your macOS wallpaper without leaving the terminal.
 
 </div>
 
+---
+
+▶ [Watch the demo](docs/demo.mp4) (13 s)
+
 ```
   Wallpaper  ~/Pictures
 
