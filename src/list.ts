@@ -11,8 +11,8 @@ export function clamp(value: number, max: number): number {
   return Math.max(0, Math.min(value, max));
 }
 
-// Moves the window just enough to keep the cursor visible instead of
-// re-centering the list on every step.
+// Двигаем окно ровно настолько, чтобы курсор остался виден, а не
+// перецентрируем список на каждом шаге.
 export function scrollOffset(
   previous: number,
   cursor: number,
@@ -26,13 +26,13 @@ export function scrollOffset(
   return clamp(offset, total - height);
 }
 
-// Width in columns, not in `.length`: an ideograph is one UTF-16 unit and two
-// columns, and the list stops lining up. Cut plain text, colour it after.
+// Ширина в колонках, а не в `.length`: иероглиф это одна единица UTF-16 и две
+// колонки, и список перестаёт сходиться. Режем чистый текст, красим после.
 export function truncate(text: string, width: number): string {
   if (width <= 1) return "";
   if (Bun.stringWidth(text) <= width) return text;
 
-  const limit = width - 1; // room for the ellipsis
+  const limit = width - 1; // место под многоточие
   let cut = "";
   for (const char of text) {
     if (Bun.stringWidth(cut + char) > limit) break;

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { classify, parseKeys } from "../src/keys.ts";
 
 describe("parseKeys", () => {
-  test("a burst of arrows is not collapsed into one", () => {
+  test("пачка стрелок не схлопывается в одну", () => {
     expect(parseKeys("\x1b[B\x1b[B\x1b[B")).toEqual([
       { type: "down" },
       { type: "down" },
@@ -10,7 +10,7 @@ describe("parseKeys", () => {
     ]);
   });
 
-  test("terminal replies do not swallow the key behind them", () => {
+  test("ответы терминала не съедают следующее нажатие", () => {
     expect(parseKeys("\x1b[?2026;2$y\x1b[?62;22;52c\x1b[B")).toEqual([
       { type: "ignore" },
       { type: "ignore" },
@@ -18,11 +18,11 @@ describe("parseKeys", () => {
     ]);
   });
 
-  test("lone Esc is cancel, not the start of a sequence", () => {
+  test("одинокий Esc это отмена, а не начало последовательности", () => {
     expect(parseKeys("\x1b")).toEqual([{ type: "escape" }]);
   });
 
-  test("letters and arrows interleave", () => {
+  test("буквы и стрелки идут вперемешку", () => {
     expect(parseKeys("a\x1b[Bb")).toEqual([
       { type: "text", value: "a" },
       { type: "down" },
@@ -32,7 +32,7 @@ describe("parseKeys", () => {
 });
 
 describe("classify", () => {
-  test("Home and End differ between terminals", () => {
+  test("Home и End у терминалов разные", () => {
     for (const token of ["\x1b[H", "\x1b[1~", "\x1bOH"]) {
       expect(classify(token)).toEqual({ type: "home" });
     }

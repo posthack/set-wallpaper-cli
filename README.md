@@ -2,7 +2,7 @@
 
 # set-wallpaper
 
-Pick your macOS wallpaper without leaving the terminal.
+Выбор обоев macOS, не выходя из терминала.
 
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000?style=flat-square&logo=apple)](https://www.apple.com/macos/)
 [![Bun](https://img.shields.io/badge/Bun-1.1%2B-fbf0df?style=flat-square&logo=bun&logoColor=000)](https://bun.sh)
@@ -15,13 +15,13 @@ Pick your macOS wallpaper without leaving the terminal.
 
 https://github.com/user-attachments/assets/f9bf08e0-c20b-4d95-a4da-b98368542769
 
-Arrow keys walk the list and the desktop changes as you go, so you see the
-picture instead of guessing from a filename. `Enter` keeps it. `Esc` puts back
-whatever was there before you started. Type any letters to filter.
+Стрелки идут по списку, и обои меняются сразу, так что ты видишь картинку, а не
+угадываешь её по имени файла. `Enter` оставляет выбранное. `Esc` возвращает то,
+что стояло до запуска. Любые буквы включают фильтр.
 
-## Install
+## Установка
 
-Needs [Bun](https://bun.sh) and macOS 14 or newer.
+Нужны [Bun](https://bun.sh) и macOS 14 или новее.
 
 ```sh
 git clone https://github.com/posthack/set-wallpaper-cli
@@ -30,100 +30,102 @@ bun install
 bun run link
 ```
 
-`bun run link` symlinks the entry point into `~/.local/bin`. Edits under `src/`
-apply on the next run, there is nothing to rebuild.
+`bun run link` кладёт симлинк в `~/.local/bin`. Правки в `src/` подхватываются
+со следующего запуска, пересобирать нечего.
 
-## Usage
+## Как пользоваться
 
 ```sh
-set-wallpaper                # list ~/Pictures
-set-wallpaper ~/Wallpapers   # list another directory
-set-wallpaper shore.jpg      # set one file, no list
-set-wallpaper --random       # roll the dice
-set-wallpaper --current      # print what is on screen now
-set-wallpaper --no-motion    # skip the animation
+set-wallpaper                # список из ~/Pictures
+set-wallpaper ~/Wallpapers   # список из другой папки
+set-wallpaper shore.jpg      # поставить один файл, без списка
+set-wallpaper --random       # наугад
+set-wallpaper --current      # что стоит прямо сейчас
+set-wallpaper --no-motion    # без анимации
 ```
 
-| Key | Does |
+| Клавиша | Что делает |
 | --- | --- |
-| `↑` `↓` | move, wallpaper follows |
-| `PgUp` `PgDn` `Home` `End` | jump |
-| letters | filter by name |
-| `Backspace` `Ctrl-U` | trim or clear the filter |
-| `Enter` | keep the selection |
-| `Esc` `Ctrl-C` | restore and quit |
+| `↑` `↓` | двигают курсор, обои идут следом |
+| `PgUp` `PgDn` `Home` `End` | прыжок |
+| буквы | фильтр по имени |
+| `Backspace` `Ctrl-U` | стереть символ или очистить фильтр |
+| `Enter` | оставить выбранное |
+| `Esc` `Ctrl-C` | вернуть исходные и выйти |
 
-Scanning goes recursive from `~/Pictures`, or from `SET_WALLPAPER_DIR` if you
-set it. Hidden files and `*.photoslibrary` bundles stay out. Formats: jpg, png,
-heic, heif, webp, tiff, gif, bmp. Sorting is natural, so `39.jpg` lands before
-`1920-3.jpg`.
+Обход рекурсивный, от `~/Pictures` или от `SET_WALLPAPER_DIR`, если она задана.
+Скрытые файлы и бандлы `*.photoslibrary` остаются за бортом. Форматы: jpg, png,
+heic, heif, webp, tiff, gif, bmp. Сортировка натуральная, поэтому `39.jpg` идёт
+раньше `1920-3.jpg`.
 
-## Motion
+## Движение
 
-Three effects, all short, all skippable.
+Три эффекта, все короткие, все отключаемые.
 
-The list fades in with a leftward slide and a 16 ms stagger between rows, 190 ms
-in total. Hit any key and it snaps to the end.
+Список проступает со сдвигом влево, с задержкой 16 мс между строками, 190 мс
+целиком. Нажми любую клавишу, и он мгновенно доиграет до конца.
 
-The cursor rides a critically damped spring at ω=52: 90% of the distance in
-90 ms, settled by 230 ms, no overshoot. Its bar on the left moves in eighths of
-a row. A character cell will not subdivide, so intermediate positions come from
-the block glyphs `▁▂▃▄▅▆▇█`, with the upper half of a cell drawn by inverting
-the background. Hold an arrow key down and the cursor trails behind you, which
-gives inertia for free.
+Курсор едет на пружине с критическим демпфированием, ω=52: 90% пути за 90 мс,
+полная остановка к 230 мс, без перелёта. Полоса слева двигается с точностью до
+восьмой доли строки. Знакоместо не делится, поэтому промежуточные положения
+берутся из блочных символов `▁▂▃▄▅▆▇█`, а верхняя половина клетки рисуется
+инверсией фона. Зажми стрелку, и курсор потянется следом: инерция получается
+даром.
 
-Applying gets the one long effect: a 320 ms glint across the filename. `Esc`
-plays the same glint backwards and muted.
+Момент применения получает единственный длинный эффект — блик по имени файла на
+320 мс. `Esc` играет тот же блик назад и приглушённым.
 
-Everything else stays still. Filtering highlights matched letters rather than
-animating rows into new places, because reshuffling a list under someone who is
-typing is the most annoying thing you can animate.
+Всё остальное неподвижно. Фильтр подсвечивает совпавшие буквы вместо того, чтобы
+перекладывать строки: перетасовка списка под руками у печатающего человека
+раздражает сильнее всего, что вообще можно анимировать.
 
-Motion turns off with `--no-motion`, `SET_WALLPAPER_NO_MOTION`, `NO_COLOR`,
-`CI`, `TERM=dumb`, a non-tty stdout, or Reduce Motion in macOS Accessibility.
-The frame timer stops as soon as nothing moves.
+Движение выключают `--no-motion`, `SET_WALLPAPER_NO_MOTION`, `NO_COLOR`, `CI`,
+`TERM=dumb`, вывод не в терминал и «Уменьшение движения» в Универсальном доступе
+macOS. Таймер кадров встаёт, как только всё замерло.
 
 <details>
-<summary><b>Implementation notes</b></summary>
+<summary><b>Как это устроено</b></summary>
 
-**Setting the wallpaper.** Since macOS 14 the wallpaper lives in
-`~/Library/Application Support/com.apple.wallpaper/Store/Index.plist`, and the
-`System Events` AppleScript recipe you find in older answers no longer reaches
-it. This calls the public `NSWorkspace.setDesktopImageURL(_:for:options:)`
-through the JXA bridge instead, at roughly 70 ms per call. Fast enough that the
-preview keeps up with the arrow key.
+**Смена обоев.** С macOS 14 обои живут в
+`~/Library/Application Support/com.apple.wallpaper/Store/Index.plist`, и рецепт
+через `System Events`, который попадается в старых ответах, до них уже не
+достаёт. Вместо него тут публичный `NSWorkspace.setDesktopImageURL(_:for:options:)`
+через мост JXA, примерно 70 мс на вызов. Этого хватает, чтобы предпросмотр
+поспевал за стрелкой.
 
-**The lock screen changes too.** macOS 14 ties it to the desktop picture. The
-call rewrites `SystemDefault` in the wallpaper store, no separate key for the
-lock screen exists, and the public API offers only scaling, clipping and a fill
-color. Editing the plist back does work until `WallpaperAgent` restarts and
-flushes its in-memory copy over your edit. System Settings behaves the same way.
+**Экран блокировки меняется тоже.** macOS 14 связала его с картинкой рабочего
+стола. Вызов переписывает ключ `SystemDefault` в хранилище обоев, отдельного
+ключа под локскрин в системе нет, а публичный API умеет только масштаб, обрезку
+и цвет заливки. Вернуть `SystemDefault` правкой файла получается ровно до
+перезапуска `WallpaperAgent`: он сбрасывает свою копию из памяти поверх правки.
+Системные настройки ведут себя так же.
 
-**Frames.** Each frame goes out whole in a single write wrapped in synchronized
-output (DEC 2026), otherwise a 60 fps redraw tears. Support gets queried at
-runtime with `CSI ? 2026 $ p`, since `TERM` says `xterm-256color` under Ghostty
-and tells you nothing. A Primary DA request rides along: an answer to that one
-and silence on the mode means no support, and we stop waiting.
+**Кадры.** Кадр уходит целиком одной записью, обёрнутой в синхронизированный
+вывод (DEC 2026), иначе перерисовка на 60 к/с рвётся. Поддержку спрашиваем у
+терминала в рантайме через `CSI ? 2026 $ p`, потому что `TERM` под Ghostty
+говорит `xterm-256color` и не значит ничего. К запросу подшит Primary DA: ответ
+на него при молчании про режим означает, что поддержки нет и ждать больше
+нечего.
 
-**Color.** Fades interpolate in OKLab. Blending sRGB bytes drops the middle of a
-transition into muddy grey and steps unevenly in brightness. Midpoint between
-black and white is 128 in sRGB, while your eye puts it near 99.
+**Цвет.** Затухания считаются в OKLab. Смешивание байтов sRGB проваливает
+середину перехода в мутный серый и идёт неравномерно по яркости: середина между
+чёрным и белым в sRGB это 128, а глаз ставит её около 99.
 
-**Input.** The terminal delivers bytes in chunks, and one chunk can hold a burst
-of keypresses or a reply to a query of ours. Comparing a whole chunk against
-`"\x1b[A"` loses keys, which is how the first arrow press used to do nothing.
+**Ввод.** Терминал отдаёт байты кусками, и в одном куске может приехать пачка
+нажатий или ответ на наш запрос. Сравнение куска целиком с `"\x1b[A"` теряет
+клавиши — из-за этого первое нажатие стрелки когда-то не срабатывало.
 
 </details>
 
-## Tests
+## Тесты
 
 ```sh
 bun test
 ```
 
-Covers the pure parts: directory walk, filter, scrolling, truncation by column
-width, spring math, color blending, input parsing.
+Покрыты чистые части: обход папок, фильтр, прокрутка, обрезка по ширине в
+колонках, математика пружины, смешивание цветов, разбор ввода.
 
-## License
+## Лицензия
 
 MIT

@@ -16,8 +16,8 @@ const ESC = "\x1b";
 
 const isFinalByte = (char: string) => char >= "\x40" && char <= "\x7e";
 
-// A chunk can hold a burst of keypresses or a reply to one of our queries, so
-// it has to be split rather than compared whole.
+// В одном куске может приехать пачка нажатий или ответ терминала на наш же
+// запрос, поэтому его надо резать, а не сравнивать целиком.
 function tokenize(input: string): string[] {
   const tokens: string[] = [];
   let index = 0;
@@ -39,7 +39,7 @@ function tokenize(input: string): string[] {
         index = end + 1;
         continue;
       }
-      tokens.push(input.slice(index)); // cut off at a chunk boundary
+      tokens.push(input.slice(index)); // оборвалось на границе куска
       break;
     }
 
@@ -84,7 +84,7 @@ export function classify(token: string): Key {
       return { type: "end" };
   }
 
-  // Terminal replies land here. Dropping them beats eating a real keypress.
+  // Сюда попадают ответы терминала. Выбросить их лучше, чем съесть нажатие.
   if (token.startsWith(ESC)) return { type: "ignore" };
 
   return token >= " " ? { type: "text", value: token } : { type: "ignore" };

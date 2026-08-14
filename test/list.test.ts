@@ -9,11 +9,11 @@ const pictures: Picture[] = [
 ];
 
 describe("filterPictures", () => {
-  test("empty query keeps everything", () => {
+  test("пустой запрос оставляет всё", () => {
     expect(filterPictures(pictures, "  ")).toHaveLength(3);
   });
 
-  test("matches case-insensitively, directories included", () => {
+  test("ищет без учёта регистра, вместе с папками", () => {
     expect(filterPictures(pictures, "gta")).toEqual([pictures[2]!]);
     expect(filterPictures(pictures, "games/")).toEqual([pictures[2]!]);
     expect(filterPictures(pictures, "zzz")).toEqual([]);
@@ -21,11 +21,11 @@ describe("filterPictures", () => {
 });
 
 describe("scrollOffset", () => {
-  test("stays put while the list fits", () => {
+  test("стоит на месте, пока список влезает", () => {
     expect(scrollOffset(0, 4, 5, 10)).toBe(0);
   });
 
-  test("follows the cursor by one step and stops at the tail", () => {
+  test("идёт за курсором по шагу и упирается в хвост", () => {
     expect(scrollOffset(0, 5, 20, 5)).toBe(1);
     expect(scrollOffset(10, 3, 20, 5)).toBe(3);
     expect(scrollOffset(18, 19, 20, 5)).toBe(15);
@@ -33,12 +33,12 @@ describe("scrollOffset", () => {
 });
 
 describe("truncate", () => {
-  test("cuts long strings with an ellipsis", () => {
+  test("режет длинные строки с многоточием", () => {
     expect(truncate("39.jpg", 20)).toBe("39.jpg");
     expect(truncate("gta-6-artwork.jpg", 8)).toBe("gta-6-a…");
   });
 
-  test("counts columns, not UTF-16 units", () => {
+  test("считает колонки, а не единицы UTF-16", () => {
     expect(truncate("日本語", 6)).toBe("日本語");
     expect(Bun.stringWidth(truncate("日本語", 4))).toBeLessThanOrEqual(4);
   });

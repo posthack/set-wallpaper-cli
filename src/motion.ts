@@ -8,8 +8,8 @@ export function motionAllowed(explicitlyOff: boolean): boolean {
   return !prefersReducedMotion();
 }
 
-// There is no agreed-upon NO_MOTION variable, but macOS already knows the
-// answer: Accessibility -> Reduce Motion.
+// Общепринятой переменной NO_MOTION не существует, но macOS уже знает ответ:
+// Универсальный доступ -> Уменьшение движения.
 function prefersReducedMotion(): boolean {
   try {
     const proc = Bun.spawnSync([

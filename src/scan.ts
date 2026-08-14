@@ -16,7 +16,7 @@ const IMAGE_EXTENSIONS = new Set([
 
 export interface Picture {
   path: string;
-  /** What the list shows: path relative to the scan root. */
+  /** Что видно в списке: путь относительно корня обхода. */
   label: string;
 }
 
@@ -27,8 +27,8 @@ export function isImage(name: string): boolean {
 
 const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 
-// Photo libraries are skipped on purpose: thousands of thumbnails inside a
-// bundle have no business in a wallpaper list.
+// Библиотеки фото пропускаем намеренно: тысячам миниатюр внутри бандла в
+// списке обоев делать нечего.
 export function findPictures(root: string): Picture[] {
   const found: Picture[] = [];
 
@@ -37,7 +37,7 @@ export function findPictures(root: string): Picture[] {
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
-      return; // no permission, or it vanished mid-walk
+      return; // нет прав или папка исчезла по дороге
     }
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;

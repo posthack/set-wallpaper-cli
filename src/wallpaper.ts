@@ -1,6 +1,6 @@
-// Since macOS 14 the wallpaper lives in com.apple.wallpaper/Store/Index.plist
-// and the old `System Events` recipe no longer reaches it. NSWorkspace still
-// does, and the JXA bridge costs about 70 ms per call.
+// С macOS 14 обои живут в com.apple.wallpaper/Store/Index.plist, и старый
+// рецепт через `System Events` до них уже не достаёт. NSWorkspace достаёт,
+// а мост JXA стоит около 70 мс на вызов.
 
 const AS_ARGS = ["-l", "JavaScript", "-e"];
 
@@ -22,7 +22,7 @@ export function getWallpaper(): string | null {
   return out || null;
 }
 
-// TODO: same picture goes to every display, per-screen would be nicer
+// TODO: на все экраны уходит одна картинка, по-хорошему нужен свой на каждый
 export function setWallpaper(path: string): void {
   const out = osascript(`
     ObjC.import("AppKit");

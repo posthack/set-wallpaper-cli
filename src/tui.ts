@@ -26,7 +26,7 @@ const ENTRANCE_MS = 190;
 const ENTRANCE_STAGGER_MS = 16;
 const SWEEP_MS = 320;
 const SWEEP_SPREAD = 4;
-// Held arrow keys would otherwise thrash the wallpaper agent.
+// Иначе зажатая стрелка задёргает системного агента обоев.
 const PREVIEW_DELAY_MS = 60;
 
 const EIGHTHS = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
@@ -48,8 +48,8 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
   const out = process.stdout;
   const stdin = process.stdin;
 
-  // Raw mode first, then the query: otherwise the reply is echoed onto the
-  // screen and comes back as a keypress.
+  // Сырой режим до запроса: иначе ответ уйдёт эхом на экран и вернётся к нам
+  // уже как нажатие клавиши.
   stdin.setRawMode(true);
   stdin.resume();
 
@@ -57,7 +57,7 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
     try {
       stdin.setRawMode(false);
     } catch {
-      // already closed
+      // уже закрыт
     }
     out.write(RESET + SHOW_CURSOR + ALT_SCREEN_OFF);
   };
@@ -77,7 +77,7 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
   let cursor = Math.max(0, pictures.findIndex((p) => p.path === current));
   let offset = 0;
 
-  // Fractional row inside the viewport: the spring rides between rows.
+  // Дробная строка внутри окна: пружина едет между строками.
   let cursorY = 0;
   let cursorVelocity = 0;
   const spring = createSpring(1 / 60, CURSOR_OMEGA);
@@ -104,9 +104,9 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
     );
   };
 
-  // A cell is indivisible, so the bar moves in block glyphs: the row under the
-  // cursor gets its lower part, the next one the upper part drawn by inverting
-  // fg and bg. Eight positions per row instead of a jump across a whole one.
+  // Знакоместо неделимо, поэтому полоса двигается блочными символами: строке под
+  // курсором достаётся нижняя часть, следующей верхняя, нарисованная инверсией
+  // фона. Восемь положений на строку вместо скачка через всю.
   const railFor = (row: number): string => {
     const top = Math.floor(cursorY);
     const fraction = cursorY - top;
@@ -185,7 +185,7 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
     const progress = clamp01((now - sweepStartedAt) / SWEEP_MS);
     const chars = [...label];
     const head = progress * (chars.length + SWEEP_SPREAD * 2) - SWEEP_SPREAD;
-    // Cancelling plays the same glint muted and backwards.
+    // При отмене тот же блик, приглушённый и в обратную сторону.
     const cancelling = phase === "cancelling";
     const position = cancelling ? chars.length - head : head;
     const steps = cancelling ? cancelRamp : sweepRamp;
@@ -257,7 +257,7 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
       return moving;
     });
 
-    // Any keypress cuts the entrance short.
+    // Любое нажатие обрывает появление.
     const settleEntrance = () => {
       if (entranceDone) return;
       entranceDone = true;
@@ -306,7 +306,7 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
 
     const onResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
-      // Dragging a window fires dozens of these in a row.
+      // Перетаскивание окна шлёт их десятками подряд.
       resizeTimer = setTimeout(() => {
         writer.invalidate();
         out.write(`${ESC}[2J`);
@@ -388,7 +388,7 @@ export async function pickPicture(options: PickerOptions): Promise<PickerResult>
     cursorY = motion ? Math.max(0, cursor - offset - 1) : cursor - offset;
     draw();
 
-    // Whatever came in alongside the probe reply is already user input.
+    // Что приехало вместе с ответом на запрос, это уже ввод человека.
     if (probe.leftover.length > 0) onData(probe.leftover);
   });
 }

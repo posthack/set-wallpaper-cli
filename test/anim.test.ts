@@ -15,27 +15,27 @@ function settle(omega: number) {
   return { frames, overshoot, ms: (frames * 1000) / 60 };
 }
 
-describe("spring", () => {
-  test("settles on target without overshooting", () => {
+describe("пружина", () => {
+  test("встаёт на цель без перелёта", () => {
     const { overshoot, frames } = settle(52);
     expect(overshoot).toBeLessThan(1e-9);
     expect(frames).toBeLessThan(600);
   });
 
-  test("one cursor step stays under the 250ms perception ceiling", () => {
+  test("шаг курсора укладывается в порог восприятия 250 мс", () => {
     expect(settle(52).ms).toBeLessThan(250);
   });
 });
 
 describe("mix", () => {
-  test("ends of the blend are the colors themselves", () => {
+  test("края смешивания это сами цвета", () => {
     const a = hexToRgb("#eb6f92");
     const b = hexToRgb("#c4a7e7");
     expect(mix(a, b, 0)).toEqual(a);
     expect(mix(a, b, 1)).toEqual(b);
   });
 
-  test("black to white lands on perceptual grey, not on 128", () => {
+  test("от чёрного к белому середина перцептивная, а не 128", () => {
     const [r] = mix(hexToRgb("#000000"), hexToRgb("#ffffff"), 0.5);
     expect(r).toBeLessThan(120);
     expect(r).toBeGreaterThan(80);

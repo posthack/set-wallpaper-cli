@@ -5,9 +5,9 @@ export interface Spring {
   vv: number;
 }
 
-// Closed-form critically damped spring (Ryan Juckett). Solving the transition
-// matrix once keeps a step at three multiplications and never blows up the way
-// naive Euler does at high frequencies.
+// Пружина с критическим демпфированием, решение в замкнутой форме по Ryan
+// Juckett. Матрица перехода считается один раз, шаг стоит три умножения, и на
+// высоких частотах это не разносит, в отличие от наивного Эйлера.
 export function createSpring(dt: number, omega: number): Spring {
   if (omega < Number.EPSILON) return { pp: 1, pv: 0, vp: 0, vv: 1 };
   const e = Math.exp(-omega * dt);
@@ -29,8 +29,8 @@ export function stepSpring(
   ];
 }
 
-// Block glyphs split a row into eight, so anything finer is invisible and the
-// spring can stop there instead of burning frames on the decay tail.
+// Блочные символы делят строку на восемь, мельче глазу недоступно, так что
+// пружину можно останавливать там и не жечь кадры на хвосте затухания.
 export const SUBCELL_STEPS = 8;
 
 export function isSettled(position: number, velocity: number, target: number): boolean {
@@ -68,8 +68,8 @@ function oklabToSrgb([L, A, B]: Rgb): Rgb {
   ];
 }
 
-// Blending sRGB bytes directly drops the middle of a transition into muddy grey
-// and moves unevenly in brightness, so fades run through OKLab instead.
+// Смешивание прямо в байтах sRGB проваливает середину перехода в мутный серый
+// и идёт неравномерно по яркости, поэтому затухания считаем через OKLab.
 export function mix(from: Rgb, to: Rgb, t: number): Rgb {
   const k = clamp01(t);
   const a = srgbToOklab(from);
@@ -81,8 +81,8 @@ export function mix(from: Rgb, to: Rgb, t: number): Rgb {
   ]);
 }
 
-// Two cube roots per cell per frame add up, and the eye cannot tell more than a
-// few dozen steps apart anyway.
+// Два кубических корня на ячейку в каждом кадре набегают, а глаз всё равно не
+// различает больше нескольких десятков ступеней.
 export function ramp(from: Rgb, to: Rgb, steps = 48): string[] {
   return Array.from({ length: steps }, (_, i) => fg(mix(from, to, i / (steps - 1))));
 }

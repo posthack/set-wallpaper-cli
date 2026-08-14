@@ -12,7 +12,7 @@ export const palette = {
 
 export const RESET = "\x1b[0m";
 
-// Fades have to run to the terminal background rather than to the palette base,
-// otherwise a faded row ends up lighter than the background and reads as
-// highlighted. Assumes a dark terminal.
+// Затухать надо в фон терминала, а не в base из палитры, иначе погасшая строка
+// окажется светлее фона и будет читаться как подсвеченная. Расчёт на тёмный
+// терминал.
 export const background: Rgb = [0, 0, 0];

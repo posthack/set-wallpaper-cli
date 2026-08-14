@@ -19,7 +19,7 @@ writeFileSync(join(root, "Photos Library.photoslibrary", "thumb.jpg"), "");
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 describe("isImage", () => {
-  test("extension case does not matter", () => {
+  test("регистр расширения не важен", () => {
     expect(isImage("a.JPG")).toBe(true);
     expect(isImage("notes.txt")).toBe(false);
     expect(isImage(".jpg")).toBe(false);
@@ -29,18 +29,18 @@ describe("isImage", () => {
 describe("findPictures", () => {
   const labels = findPictures(root).map((p) => p.label);
 
-  test("skips hidden entries, photo bundles and non-pictures", () => {
+  test("пропускает скрытое, бандлы фото и не-картинки", () => {
     expect(labels).not.toContain("notes.txt");
     expect(labels).not.toContain(".secret.png");
     expect(labels.some((l) => l.includes(".hidden"))).toBe(false);
     expect(labels.some((l) => l.includes("photoslibrary"))).toBe(false);
   });
 
-  test("sorts naturally: 39 before 1920, not as strings", () => {
+  test("сортирует по-человечески: 39 раньше 1920, а не как строки", () => {
     expect(labels).toEqual(["39.jpg", "1920-3.JPG", "games/gta.heic"]);
   });
 
-  test("a missing directory does not bring the process down", () => {
+  test("несуществующая папка не роняет процесс", () => {
     expect(findPictures(join(root, "no-such-thing"))).toEqual([]);
   });
 });

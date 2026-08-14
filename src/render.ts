@@ -8,10 +8,10 @@ interface SyncProbe {
   leftover: Buffer;
 }
 
-// Only call this in raw mode. In cooked mode the terminal echoes the reply onto
-// the screen and holds it until Enter, and it later surfaces as a keypress.
-// The Primary DA request is stitched on so a terminal that ignores DEC 2026
-// still answers something and we skip the timeout.
+// Вызывать только в сыром режиме. В обычном терминал эхо-печатает ответ на
+// экран и придерживает его до Enter, а потом он всплывает как нажатие клавиши.
+// Primary DA подшит к запросу, чтобы терминал без поддержки DEC 2026 всё равно
+// что-нибудь ответил и не пришлось выбирать таймаут.
 export function probeSyncOutput(timeoutMs = 100): Promise<SyncProbe> {
   const stdin = process.stdin;
   if (!stdin.isTTY || !process.stdout.isTTY) {
@@ -27,7 +27,7 @@ export function probeSyncOutput(timeoutMs = 100): Promise<SyncProbe> {
       done = true;
       clearTimeout(timer);
       stdin.off("data", onData);
-      // latin1 keeps bytes intact, so whatever the user typed survives.
+      // latin1 сохраняет байты, поэтому набранное человеком не потеряется.
       resolve({ supported, leftover: Buffer.from(buffer.replace(consumed, ""), "latin1") });
     };
 
@@ -48,8 +48,8 @@ export function probeSyncOutput(timeoutMs = 100): Promise<SyncProbe> {
   });
 }
 
-// Ghostty 1.3.1 corrupts the screen on incremental writes inside a synchronized
-// block, and a few dozen rows are cheap, so every frame goes out whole.
+// Ghostty 1.3.1 портит экран на инкрементальных записях внутри синхронизиро-
+// ванного блока, а пара десятков строк ничего не стоит, поэтому кадр целиком.
 export class FrameWriter {
   private previous = "";
 
@@ -76,8 +76,8 @@ export class AnimationLoop {
     private readonly fps = 60,
   ) {}
 
-  // setInterval accumulates drift, and spinning frames over a still picture only
-  // heats the fan, so the timer times itself and stops once nothing moves.
+  // setInterval копит дрейф, а крутить кадры над неподвижной картинкой значит
+  // греть вентилятор, поэтому считаем время сами и встаём, когда всё замерло.
   start(): void {
     if (this.timer) return;
     const interval = 1000 / this.fps;

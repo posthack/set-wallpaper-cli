@@ -77,7 +77,7 @@ async function main(argv: string[]): Promise<void> {
   const target = positional[0] ? expandPath(positional[0]) : defaultDirectory();
   const isDirectory = existsSync(target) && statSync(target).isDirectory();
 
-  // An explicit file is set without further questions.
+  // Явный файл ставим без лишних вопросов.
   if (!isDirectory) {
     if (!existsSync(target)) fail(`not found: ${shortenHome(target)}`);
     if (!isImage(target)) fail(`not a picture: ${shortenHome(target)}`);
@@ -107,7 +107,7 @@ async function main(argv: string[]): Promise<void> {
       try {
         setWallpaper(picture.path);
       } catch {
-        // A broken file in the preview must not take the list down.
+        // Битый файл в предпросмотре не должен ронять список.
       }
     },
   });
