@@ -13,19 +13,7 @@ Pick your macOS wallpaper without leaving the terminal.
 
 ---
 
-▶ [Watch the demo](docs/demo.mp4) (13 s)
-
-```
-  Wallpaper  ~/Pictures
-
-   39.jpg
-   1920-3.jpg
-   1920x1200-9.jpg
- █ ff2ee8c6f290bae1b6eb8303b72c9ddf.jpg •
-   gta-6-artwork-jason-3840x2160-26685.jpg
-
-  ↑↓ move · Enter apply · Esc cancel · type to search
-```
+https://github.com/user-attachments/assets/f9bf08e0-c20b-4d95-a4da-b98368542769
 
 Arrow keys walk the list and the desktop changes as you go, so you see the
 picture instead of guessing from a filename. `Enter` keeps it. `Esc` puts back
